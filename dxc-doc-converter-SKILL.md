@@ -18,6 +18,7 @@ Create a DXC-branded Word document from provided text content, following all bra
 **CRITICAL REQUIREMENTS**:
 - If the source document contains tables, you MUST preserve them in the output. Tables are key structural elements and must never be omitted. Always scan for and include all tables with proper DXC formatting (Midnight Blue headers with White text, Midnight Blue body text).
 - For **document** and **report** formats, you MUST include a Table of Contents (TOC) after the title page. This is a professional standard for multi-page documents and enables easy navigation.
+- **ALWAYS use doc.add_heading() with level=1, 2, or 3 for all section headings**. This applies proper Word Heading styles which are REQUIRED for TOC functionality. Never create headings with manual formatting only - the TOC cannot detect them.
 
 ### Input Arguments (Optional)
 
@@ -175,11 +176,24 @@ header_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 run = header_para.add_run()
 run.add_picture(logo_path, width=Inches(1.5))
 
-# Title (Midnight Blue, bold, large)
+# Title (Midnight Blue, bold, large) - Use level=0 for title, won't appear in TOC
 title = doc.add_heading('Document Title Here', level=0)
 title.runs[0].font.color.rgb = COLORS['midnight_blue']
 title.runs[0].font.size = Pt(28)
 title.runs[0].font.bold = True
+
+# CRITICAL: Use doc.add_heading() with levels 1-3 for section headings
+# These will automatically use Heading 1, 2, 3 styles which TOC requires
+
+# Major section heading (will appear in TOC)
+heading1 = doc.add_heading('Executive Summary', level=1)
+heading1.runs[0].font.color.rgb = COLORS['midnight_blue']
+heading1.runs[0].font.size = Pt(20)
+
+# Subsection heading (will appear in TOC)
+heading2 = doc.add_heading('Core Principles', level=2)
+heading2.runs[0].font.color.rgb = COLORS['midnight_blue']
+heading2.runs[0].font.size = Pt(16)
 
 # Body paragraphs (Midnight Blue on Canvas background)
 para = doc.add_paragraph('Body text goes here...')
@@ -197,44 +211,117 @@ para.add_run(' text.')
 # Bullet points with accent color bullets
 # (Bullets themselves can be accent colored, but text should be Midnight Blue)
 
-# TABLE OF CONTENTS - CRITICAL: Add TOC for document and report formats
+# TABLE OF CONTENTS - CRITICAL: Add TOC with page numbers for document and report formats
 # TOC should appear after title page, before main content
-def add_table_of_contents(doc):
-    """Add a properly formatted Table of Contents"""
+
+def add_table_of_contents_with_field(doc):
+    """
+    Add a proper TOC field that Word will populate with page numbers.
+    This creates a dynamic TOC that updates when the document is opened in Word.
+    """
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
     # Add TOC heading
     toc_heading = doc.add_paragraph()
     toc_run = toc_heading.add_run('Table of Contents')
-    toc_run.font.size = Pt(18)
+    toc_run.font.size = Pt(20)
     toc_run.font.bold = True
     toc_run.font.color.rgb = COLORS['midnight_blue']
-    toc_heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    toc_heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    toc_heading.space_after = Pt(12)
 
-    # Add TOC field (Word will populate this)
-    toc_paragraph = doc.add_paragraph()
-    run = toc_paragraph.add_run()
-    fldChar = OxmlElement('w:fldChar')
-    fldChar.set(qn('w:fldCharType'), 'begin')
+    # Add spacing
+    doc.add_paragraph()
 
+    # Create TOC field paragraph
+    paragraph = doc.add_paragraph()
+    run = paragraph.add_run()
+
+    # Add the field beginning
+    fldChar1 = OxmlElement('w:fldChar')
+    fldChar1.set(qn('w:fldCharType'), 'begin')
+
+    # Add instruction text for TOC
     instrText = OxmlElement('w:instrText')
     instrText.set(qn('xml:space'), 'preserve')
     instrText.text = 'TOC \\o "1-3" \\h \\z \\u'
 
+    # Add field separator
     fldChar2 = OxmlElement('w:fldChar')
     fldChar2.set(qn('w:fldCharType'), 'separate')
 
+    # Add placeholder text
+    t = OxmlElement('w:t')
+    t.text = 'Right-click to update field'
+
+    # Add field end
     fldChar3 = OxmlElement('w:fldChar')
     fldChar3.set(qn('w:fldCharType'), 'end')
 
-    run._r.append(fldChar)
+    # Append all elements to the run
+    run._r.append(fldChar1)
     run._r.append(instrText)
     run._r.append(fldChar2)
+    run._r.append(t)
     run._r.append(fldChar3)
+
+    # Add instruction note
+    doc.add_paragraph()
+    note = doc.add_paragraph()
+    note_run = note.add_run('Note: Open this document in Microsoft Word and right-click on the field above, then select "Update Field" to populate the table of contents with page numbers.')
+    note_run.font.size = Pt(9)
+    note_run.font.italic = True
+    note_run.font.color.rgb = COLORS['royal']
 
     # Add page break after TOC
     doc.add_page_break()
 
-# Call this after title page for documents and reports
-# add_table_of_contents(doc)
+# ALTERNATIVE: If TOC field causes issues, use this static version with page numbers
+def add_table_of_contents_static(doc, sections_with_pages):
+    """
+    Add a static TOC with page numbers.
+    sections_with_pages should be a list of tuples: [('Section Name', page_number), ...]
+    """
+    # Add TOC heading
+    toc_heading = doc.add_paragraph()
+    toc_run = toc_heading.add_run('Table of Contents')
+    toc_run.font.size = Pt(20)
+    toc_run.font.bold = True
+    toc_run.font.color.rgb = COLORS['midnight_blue']
+    toc_heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    toc_heading.space_after = Pt(12)
+
+    doc.add_paragraph()
+
+    # Add TOC entries with page numbers
+    for section_name, page_num in sections_with_pages:
+        toc_para = doc.add_paragraph()
+
+        # Section name (left-aligned)
+        name_run = toc_para.add_run(section_name)
+        name_run.font.size = Pt(12)
+        name_run.font.color.rgb = COLORS['midnight_blue']
+
+        # Add dots (leaders)
+        dots_run = toc_para.add_run(' ' + '.' * 80)
+        dots_run.font.size = Pt(12)
+        dots_run.font.color.rgb = RGBColor(200, 200, 200)
+
+        # Page number (right-aligned)
+        page_run = toc_para.add_run(' ' + str(page_num))
+        page_run.font.size = Pt(12)
+        page_run.font.color.rgb = COLORS['midnight_blue']
+        page_run.font.bold = True
+
+        # Set up tab stops for proper alignment
+        toc_para.paragraph_format.tab_stops.add_tab_stop(Inches(6.0), 'RIGHT', '.')
+
+    # Add page break after TOC
+    doc.add_page_break()
+
+# RECOMMENDED: Use add_table_of_contents_with_field(doc) for dynamic TOC
+# Use add_table_of_contents_static(doc, sections) if field approach fails
 
 # TABLES - CRITICAL: Always preserve and format tables from source documents
 table = doc.add_table(rows=3, cols=3)
@@ -269,11 +356,14 @@ doc.save('DXC_Document_Output.docx')
 #### Step 4: Apply DXC Formatting Standards
 
 **Typography**:
-- **Title**: 24-28pt, Bold, Midnight Blue
-- **Headings**: 16-20pt, Bold, Midnight Blue or accent color (sparingly)
-- **Subheadings**: 14-16pt, Bold, Midnight Blue
-- **Body**: 11-12pt, Regular, Midnight Blue
+- **Title**: 24-28pt, Bold, Midnight Blue (use level=0 with add_heading())
+- **Heading 1**: 18-20pt, Bold, Midnight Blue (use level=1 with add_heading() - REQUIRED for TOC)
+- **Heading 2**: 14-16pt, Bold, Midnight Blue (use level=2 with add_heading() - REQUIRED for TOC)
+- **Heading 3**: 12-14pt, Bold, Midnight Blue (use level=3 with add_heading() - REQUIRED for TOC)
+- **Body**: 11-12pt, Regular, Midnight Blue (use add_paragraph())
 - **Emphasis**: Bold or accent color (for key phrases only)
+
+**CRITICAL**: Always use doc.add_heading() for headings, never just format regular paragraphs to look like headings. This ensures proper Word Heading styles are applied, which is required for TOC functionality.
 
 **Spacing**:
 - Adequate white space between sections
@@ -326,9 +416,10 @@ doc.save('DXC_Document_Output.docx')
 Before finalizing the document, verify:
 
 - [ ] Logo is appropriate size and positioned correctly
-- [ ] **Table of Contents included for document and report formats** (after title page)
-- [ ] **TOC properly formatted with Midnight Blue text and correct page references**
-- [ ] **All headings use proper styles (Heading 1, 2, 3) for TOC linking**
+- [ ] **Table of Contents page included for document and report formats** (after title page)
+- [ ] **TOC field is properly inserted and will update when opened in Word**
+- [ ] **ALL section headings created with doc.add_heading(level=1/2/3) - NOT manual formatting**
+- [ ] **Verified headings use Word Heading styles (check in Word: select heading, look at style name)**
 - [ ] Body text uses ONLY Midnight Blue or White (no accent colors for paragraphs)
 - [ ] Accent colors used only for highlights, bullets, icons, dividers
 - [ ] **ALL TABLES from source document are preserved and properly formatted**
