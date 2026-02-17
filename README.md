@@ -154,7 +154,7 @@ pip install python-docx pillow
 mkdir -p ~/.claude/skills/dxc-doc-converter
 
 # 3. Download skill file from GitLab
-# (Your GitLab URL here)
+git clone https://github.com/Cenarkion/dxc-doc-converter-skill.git
 
 # 4. Copy to skills directory
 cp dxc-doc-converter-SKILL.md ~/.claude/skills/dxc-doc-converter/SKILL.md
