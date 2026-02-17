@@ -15,6 +15,8 @@ Convert text content into professionally formatted Word documents (.docx) or sin
 
 Create a DXC-branded Word document from provided text content, following all branding guidelines for colors, logos, and formatting.
 
+**CRITICAL REQUIREMENT**: If the source document contains tables, you MUST preserve them in the output. Tables are key structural elements and must never be omitted. Always scan for and include all tables with proper DXC formatting (Midnight Blue headers with White text, Midnight Blue body text).
+
 ### Input Arguments (Optional)
 
 - **First argument**: Document type
@@ -124,6 +126,7 @@ Create a DXC-branded Word document from provided text content, following all bra
    - Main sections/headings
    - Body content
    - Lists or bullet points
+   - **Tables** (CRITICAL: Must be preserved and properly formatted)
    - Any data or key metrics
    - Call-to-action or conclusion
 
@@ -131,6 +134,7 @@ Create a DXC-branded Word document from provided text content, following all bra
    - Which sections need emphasis (use accent colors)
    - Where to use bullets vs. numbered lists
    - Key phrases to highlight
+   - **Table formatting** (headers, colors, borders)
 
 #### Step 3: Create Document with Python-docx
 
@@ -190,6 +194,32 @@ para.add_run(' text.')
 
 # Bullet points with accent color bullets
 # (Bullets themselves can be accent colored, but text should be Midnight Blue)
+
+# TABLES - CRITICAL: Always preserve and format tables from source documents
+table = doc.add_table(rows=3, cols=3)
+table.style = 'Light Grid Accent 1'
+
+# Header row: Midnight Blue background with White text
+header_cells = table.rows[0].cells
+for cell in header_cells:
+    cell.text = 'Header'
+    # Set background color to Midnight Blue
+    shading_elm = OxmlElement('w:shd')
+    shading_elm.set(qn('w:fill'), '0E1020')  # Midnight Blue
+    cell._element.get_or_add_tcPr().append(shading_elm)
+    # Set text color to White
+    for paragraph in cell.paragraphs:
+        for run in paragraph.runs:
+            run.font.color.rgb = COLORS['white']
+            run.font.bold = True
+
+# Body rows: Midnight Blue text on White/Canvas background
+for row in table.rows[1:]:
+    for cell in row.cells:
+        cell.text = 'Data'
+        for paragraph in cell.paragraphs:
+            for run in paragraph.runs:
+                run.font.color.rgb = COLORS['midnight_blue']
 
 # Save document
 doc.save('DXC_Document_Output.docx')
@@ -254,6 +284,9 @@ Before finalizing the document, verify:
 - [ ] Logo is appropriate size and positioned correctly
 - [ ] Body text uses ONLY Midnight Blue or White (no accent colors for paragraphs)
 - [ ] Accent colors used only for highlights, bullets, icons, dividers
+- [ ] **ALL TABLES from source document are preserved and properly formatted**
+- [ ] **Table headers use Midnight Blue background with White text**
+- [ ] **Table body text uses Midnight Blue color for readability**
 - [ ] Color combinations follow accessibility guidelines
 - [ ] Background is Canvas or White (Midnight Blue only for impact)
 - [ ] Typography hierarchy is clear and consistent
