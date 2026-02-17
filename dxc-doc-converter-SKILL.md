@@ -15,7 +15,9 @@ Convert text content into professionally formatted Word documents (.docx) or sin
 
 Create a DXC-branded Word document from provided text content, following all branding guidelines for colors, logos, and formatting.
 
-**CRITICAL REQUIREMENT**: If the source document contains tables, you MUST preserve them in the output. Tables are key structural elements and must never be omitted. Always scan for and include all tables with proper DXC formatting (Midnight Blue headers with White text, Midnight Blue body text).
+**CRITICAL REQUIREMENTS**:
+- If the source document contains tables, you MUST preserve them in the output. Tables are key structural elements and must never be omitted. Always scan for and include all tables with proper DXC formatting (Midnight Blue headers with White text, Midnight Blue body text).
+- For **document** and **report** formats, you MUST include a Table of Contents (TOC) after the title page. This is a professional standard for multi-page documents and enables easy navigation.
 
 ### Input Arguments (Optional)
 
@@ -195,6 +197,45 @@ para.add_run(' text.')
 # Bullet points with accent color bullets
 # (Bullets themselves can be accent colored, but text should be Midnight Blue)
 
+# TABLE OF CONTENTS - CRITICAL: Add TOC for document and report formats
+# TOC should appear after title page, before main content
+def add_table_of_contents(doc):
+    """Add a properly formatted Table of Contents"""
+    # Add TOC heading
+    toc_heading = doc.add_paragraph()
+    toc_run = toc_heading.add_run('Table of Contents')
+    toc_run.font.size = Pt(18)
+    toc_run.font.bold = True
+    toc_run.font.color.rgb = COLORS['midnight_blue']
+    toc_heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+    # Add TOC field (Word will populate this)
+    toc_paragraph = doc.add_paragraph()
+    run = toc_paragraph.add_run()
+    fldChar = OxmlElement('w:fldChar')
+    fldChar.set(qn('w:fldCharType'), 'begin')
+
+    instrText = OxmlElement('w:instrText')
+    instrText.set(qn('xml:space'), 'preserve')
+    instrText.text = 'TOC \\o "1-3" \\h \\z \\u'
+
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'separate')
+
+    fldChar3 = OxmlElement('w:fldChar')
+    fldChar3.set(qn('w:fldCharType'), 'end')
+
+    run._r.append(fldChar)
+    run._r.append(instrText)
+    run._r.append(fldChar2)
+    run._r.append(fldChar3)
+
+    # Add page break after TOC
+    doc.add_page_break()
+
+# Call this after title page for documents and reports
+# add_table_of_contents(doc)
+
 # TABLES - CRITICAL: Always preserve and format tables from source documents
 table = doc.add_table(rows=3, cols=3)
 table.style = 'Light Grid Accent 1'
@@ -253,8 +294,10 @@ doc.save('DXC_Document_Output.docx')
 **For Multi-Page Documents**:
 - Logo in header (top right, 1.5 inches wide)
 - Title page with horizontal tagline lockup logo (centered)
+- **Table of Contents page** (after title page, before main content)
 - Consistent header/footer on subsequent pages
 - Section breaks with accent color dividers
+- Use heading styles (Heading 1, Heading 2) to ensure TOC auto-populates correctly
 
 **For Single-Page Presentations/Slides**:
 - Larger logo (2-3 inches, centered top or corner)
@@ -266,10 +309,11 @@ doc.save('DXC_Document_Output.docx')
 
 **For Reports**:
 - Professional title page with vertical tagline logo
-- Table of contents
+- **Table of Contents page** (REQUIRED - after title page, before main content)
 - Headers with section names
 - Page numbers in footer
-- Consistent heading hierarchy
+- Consistent heading hierarchy (use Heading 1, 2, 3 styles for TOC)
+- TOC should list all major sections and subsections
 
 **For Memos**:
 - Compact logo (top left, 1 inch)
@@ -282,6 +326,9 @@ doc.save('DXC_Document_Output.docx')
 Before finalizing the document, verify:
 
 - [ ] Logo is appropriate size and positioned correctly
+- [ ] **Table of Contents included for document and report formats** (after title page)
+- [ ] **TOC properly formatted with Midnight Blue text and correct page references**
+- [ ] **All headings use proper styles (Heading 1, 2, 3) for TOC linking**
 - [ ] Body text uses ONLY Midnight Blue or White (no accent colors for paragraphs)
 - [ ] Accent colors used only for highlights, bullets, icons, dividers
 - [ ] **ALL TABLES from source document are preserved and properly formatted**
